@@ -14,7 +14,9 @@ int main (int argc, char* argc[]) {
     // OpenCV create a window
     imshow("window", img);
 
-    char c = waitKey(1);
+    img *= 0.99; // Will make the picture get darker
+
+    char c = waitKey(1); // In milliseconds
     if (c == 27) break; // ASCII code for ESC key
     if (c == 's' || c == 'S') break; // Custom close key 
   }
