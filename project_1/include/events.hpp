@@ -1,14 +1,18 @@
 #pragma once
+#include <iostream>
+#include <string>
 
-#include "opencv2/core.hpp"
+#include <opencv2/core/core.hpp>       // class structure
+#include <opencv2/highgui/highgui.hpp> // provide input/output functions
+#include <opencv2/imgproc/imgproc.hpp> // provide image processing functions
+
 namespace Events_NS {
 class Events {
 public:
-  Events(const string window);
+  Events();
 
-  void onMouseClick(int event, int x, int y, int flags, void *userData);
+  static void onMouseClick(int event, int x, int y, int flags, void *userData);
 
 private:
-  const std::string m_WINDOW;
 };
 } // namespace Events_NS
