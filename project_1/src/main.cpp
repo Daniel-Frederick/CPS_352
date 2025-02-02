@@ -9,25 +9,24 @@
 
 int main(int argc, char *argv[]) {
   const std::string WINDOW = "Dan's Window";
-  Events_NS::Events events;
-  cv::Mat img; // matrix is considered as an image holder
-
-  // Load image file into RAM and store it as "img" variable
-  img = cv::imread("forest.jpg");
+  cv::Mat image = cv::imread("assets/forest.jpg");
+  if (image.empty()) {
+    std::cout << "Could not load image!" << std::endl;
+    return -1;
+  }
   cv::namedWindow(WINDOW);
+
+  // Events
+  Events_NS::Events events;
+  cv::setMouseCallback(WINDOW, events.drawRectangleCallback, &image);
 
   while (true) {
     // Create window and display img
-    imshow(WINDOW, img);
-
-    // Events
-    cv::setMouseCallback(WINDOW, events.onMouseClick);
+    imshow(WINDOW, image);
 
     char c = cv::waitKey(1); // In milliseconds
-    if (c == 27)
-      break; // ASCII code for ESC key
-    if (c == 's' || c == 'S')
-      break; // Custom close key
+    if (c == 27 || c == 's' || c == 'S')
+      break;
   }
 
   return 1;
