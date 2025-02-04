@@ -1,23 +1,29 @@
 #include "include/events.hpp"
+#include "opencv2/highgui.hpp"
+#include "opencv2/imgproc.hpp"
 
 namespace Events_NS {
 
 // Constructor definition
 Events::Events() {}
 
-// TODO: Make it so the rectangle moves with mouse hold
 void Events::drawRectangleCallback(int event, int x, int y, int flags,
                                    void *userData) {
+  static bool drawing = false;
+  static cv::Point sPoint;
+
+  if (!userData)
+    return;
+  cv::Mat *image = static_cast<cv::Mat *>(userData);
+
   if (event == cv::EVENT_LBUTTONDOWN) {
-    std::cout << "onMouseClick works" << std::endl;
-    // Ensure userData is a valid OpenCV Mat pointer
-    if (userData) {
-      cv::Mat *image = static_cast<cv::Mat *>(userData);
-      if (!image->empty()) {
-        cv::rectangle(*image, cv::Point(x - 10, y - 10),
-                      cv::Point(x + 10, y + 10), cv::Scalar(255, 0, 0), 2);
-      }
+    drawing = true;
+    sPoint = cv::Point(x, y);
+  } else if (event == cv::EVENT_LBUTTONUP) {
+    if (drawing && !image->empty()) {
+      cv::rectangle(*image, sPoint, cv::Point(x, y), cv::Scalar(255, 0, 0), 2);
     }
+    drawing = false;
   }
 }
 } // namespace Events_NS
