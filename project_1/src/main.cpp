@@ -1,6 +1,7 @@
 #include "include/events.hpp"
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
+#include <iostream>
 #include <string>
 
 #include <opencv2/core/core.hpp>       // class structure
@@ -9,7 +10,8 @@
 
 int main(int argc, char *argv[]) {
   const std::string WINDOW = "Dan's Window";
-  cv::Mat image = cv::imread("assets/forest.jpg");
+  cv::Mat image = cv::imread(
+      "/home/frederickd/projects/CPS_352/project_1/assets/forest.jpg");
   if (image.empty()) {
     std::cout << "Could not load image!" << std::endl;
     return -1;
@@ -21,11 +23,10 @@ int main(int argc, char *argv[]) {
   cv::setMouseCallback(WINDOW, events.drawRectangleCallback, &image);
 
   while (true) {
-    // Create window and display img
     imshow(WINDOW, image);
-
-    char c = cv::waitKey(1); // In milliseconds
-    if (c == 27 || c == 's' || c == 'S')
+    char c = cv::waitKey(1);
+    events.userInput(&c);
+    if (c == 27)
       break;
   }
 
