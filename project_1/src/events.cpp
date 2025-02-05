@@ -1,4 +1,5 @@
 #include "include/events.hpp"
+#include "opencv2/core/base.hpp"
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgproc.hpp"
 
@@ -9,6 +10,8 @@ Events::Events() {}
 
 void Events::drawRectangleCallback(int event, int x, int y, int flags,
                                    void *userData) {
+  // TODO: See rectangle on screen as you move
+  // TODO: Add blur effect inside rectangle
   static bool drawing = false;
   static cv::Point sPoint;
 
@@ -20,7 +23,7 @@ void Events::drawRectangleCallback(int event, int x, int y, int flags,
     drawing = true;
     sPoint = cv::Point(x, y);
   } else if (event == cv::EVENT_LBUTTONUP) {
-    if (drawing && !image->empty()) {
+    if (drawing) {
       cv::rectangle(*image, sPoint, cv::Point(x, y), cv::Scalar(255, 0, 0), 2);
     }
     drawing = false;
@@ -40,15 +43,19 @@ void Events::userInput(const char *c) {
   case 's':
   case 'S':
     // Save file into local system
-    // events.save();
+    save();
     break;
   case 'r':
   case 'R':
     // Remove everything and start over
-    // events.remove();
+    remove();
     break;
   default:
     break;
   }
 }
+
+void Events::save() { std::cout << "save method called" << std::endl; }
+
+void Events::remove() { std::cout << "remove method called" << std::endl; }
 } // namespace Events_NS

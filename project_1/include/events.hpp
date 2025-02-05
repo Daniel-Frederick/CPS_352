@@ -16,8 +16,8 @@ public:
   void userInput(const char *c);
 
 private:
-  // void save();
-  // void remove();
+  void save();
+  void remove();
 
   int m_blurDegree = 5;
 };
