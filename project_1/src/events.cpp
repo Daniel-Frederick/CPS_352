@@ -26,4 +26,29 @@ void Events::drawRectangleCallback(int event, int x, int y, int flags,
     drawing = false;
   }
 }
+
+void Events::userInput(const char *c) {
+  switch (*c) {
+  case 'i':
+  case 'I':
+    m_blurDegree++;
+    break;
+  case 'd':
+  case 'D':
+    m_blurDegree--;
+    break;
+  case 's':
+  case 'S':
+    // Save file into local system
+    // events.save();
+    break;
+  case 'r':
+  case 'R':
+    // Remove everything and start over
+    // events.remove();
+    break;
+  default:
+    break;
+  }
+}
 } // namespace Events_NS
