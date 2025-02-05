@@ -23,7 +23,7 @@ void Events::drawRectangleCallback(int event, int x, int y, int flags,
     drawing = true;
     sPoint = cv::Point(x, y);
   } else if (event == cv::EVENT_LBUTTONUP) {
-    if (drawing) {
+    if (drawing && !image->empty()) {
       cv::rectangle(*image, sPoint, cv::Point(x, y), cv::Scalar(255, 0, 0), 2);
     }
     drawing = false;
