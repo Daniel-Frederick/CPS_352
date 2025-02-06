@@ -55,7 +55,10 @@ void Events::userInput(const char *c) {
   }
 }
 
-void Events::save() { std::cout << "save method called" << std::endl; }
+void Events::save() {
+  std::cout << "save method called" << std::endl;
+  // cv::imwrite();
+}
 
 void Events::remove() { std::cout << "remove method called" << std::endl; }
 } // namespace Events_NS
