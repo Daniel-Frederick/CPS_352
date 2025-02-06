@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
   cv::namedWindow(WINDOW);
 
   // Events
-  Events_NS::Events events;
+  Events_NS::Events events(imgPath, image);
   cv::setMouseCallback(WINDOW, events.drawRectangleCallback, &image);
 
   while (true) {

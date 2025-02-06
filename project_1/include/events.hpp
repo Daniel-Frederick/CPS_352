@@ -9,7 +9,7 @@
 namespace Events_NS {
 class Events {
 public:
-  Events();
+  Events(const std::string &imgPath, const cv::Mat &image);
 
   static void drawRectangleCallback(int event, int x, int y, int flags,
                                     void *userData);
@@ -20,5 +20,7 @@ private:
   void remove();
 
   int m_blurDegree = 5;
+  std::string m_imgPath;
+  cv::Mat m_image;
 };
 } // namespace Events_NS
