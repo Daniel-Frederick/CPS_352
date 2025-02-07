@@ -14,3 +14,4 @@ sudo apt install meson ninja-build
 
 3. ./build/mosaic
 
+https://canvas.udayton.edu/courses/17916/assignments/245941
