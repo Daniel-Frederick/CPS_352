@@ -5,28 +5,109 @@
 #include <filesystem>
 
 namespace Events_NS {
-
+unsigned char *Events::arr1D = nullptr;
+cv::Mat Events::tempImage;
+bool Events::drawing = false;
+cv::Point Events::startPoint(-1, -1);
 // Constructor definition
 Events::Events(const std::string &imgPath, const cv::Mat &image)
-    : m_imgPath(imgPath), m_image(image) {}
+    : m_imgPath(imgPath), m_image(image) {
+  // Allocate memory for the dynamic array
+  arr1D = new unsigned char[image.rows * image.cols * 3];
+  // Copy initial image data to array
+  memcpy(arr1D, image.data, image.rows * image.cols * 3);
+}
+
+Events::~Events() {
+  if (arr1D) {
+    delete[] arr1D;
+    arr1D = nullptr;
+  }
+}
 
 void Events::drawRectangleCallback(int event, int x, int y, int flags,
                                    void *userData) {
-  // TODO: See rectangle on screen as you move
-  // TODO: Add blur effect inside rectangle
-  static bool drawing = false;
-  static cv::Point sPoint;
-
   if (!userData)
     return;
+
   cv::Mat *image = static_cast<cv::Mat *>(userData);
 
   if (event == cv::EVENT_LBUTTONDOWN) {
     drawing = true;
-    sPoint = cv::Point(x, y);
+    startPoint = cv::Point(x, y);
+    // Create a copy of the original image
+    image->copyTo(tempImage);
+    // Update the dynamic array with current image data
+    memcpy(arr1D, image->data, image->rows * image->cols * 3);
+  } else if (event == cv::EVENT_MOUSEMOVE && drawing) {
+    // Create a copy for display
+    tempImage.copyTo(*image);
+
+    // Draw rectangle
+    cv::rectangle(*image, startPoint, cv::Point(x, y), cv::Scalar(255, 0, 0),
+                  2);
+
+    // Calculate region bounds
+    int minX = std::max(0, std::min(startPoint.x, x));
+    int maxX = std::min(image->cols, std::max(startPoint.x, x));
+    int minY = std::max(0, std::min(startPoint.y, y));
+    int maxY = std::min(image->rows, std::max(startPoint.y, y));
+
+    // Apply blur effect using the dynamic array
+    for (int j = minY; j < maxY; j++) {
+      for (int i = minX; i < maxX; i++) {
+        int idx = (j * image->cols + i) * 3;
+
+        // Simple blur effect by averaging neighboring pixels
+        if (i > 0 && i < image->cols - 1 && j > 0 && j < image->rows - 1) {
+          for (int c = 0; c < 3; c++) {
+            int sum = 0;
+            for (int dy = -1; dy <= 1; dy++) {
+              for (int dx = -1; dx <= 1; dx++) {
+                int pidx = ((j + dy) * image->cols + (i + dx)) * 3 + c;
+                sum += arr1D[pidx];
+              }
+            }
+            image->data[idx + c] = sum / 9;
+          }
+        }
+      }
+    }
   } else if (event == cv::EVENT_LBUTTONUP) {
     if (drawing && !image->empty()) {
-      cv::rectangle(*image, sPoint, cv::Point(x, y), cv::Scalar(255, 0, 0), 2);
+      // Calculate final region bounds
+      int minX = std::max(0, std::min(startPoint.x, x));
+      int maxX = std::min(image->cols, std::max(startPoint.x, x));
+      int minY = std::max(0, std::min(startPoint.y, y));
+      int maxY = std::min(image->rows, std::max(startPoint.y, y));
+
+      // Apply final blur effect
+      for (int j = minY; j < maxY; j++) {
+        for (int i = minX; i < maxX; i++) {
+          int idx = (j * image->cols + i) * 3;
+
+          // Apply blur using the same technique as during movement
+          if (i > 0 && i < image->cols - 1 && j > 0 && j < image->rows - 1) {
+            for (int c = 0; c < 3; c++) {
+              int sum = 0;
+              for (int dy = -1; dy <= 1; dy++) {
+                for (int dx = -1; dx <= 1; dx++) {
+                  int pidx = ((j + dy) * image->cols + (i + dx)) * 3 + c;
+                  sum += arr1D[pidx];
+                }
+              }
+              image->data[idx + c] = sum / 9;
+            }
+          }
+        }
+      }
+
+      // Draw final rectangle
+      cv::rectangle(*image, startPoint, cv::Point(x, y), cv::Scalar(255, 0, 0),
+                    2);
+
+      // Update the dynamic array with the modified image
+      memcpy(arr1D, image->data, image->rows * image->cols * 3);
     }
     drawing = false;
   }
