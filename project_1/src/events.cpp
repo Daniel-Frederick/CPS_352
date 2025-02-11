@@ -139,13 +139,9 @@ void Events::userInput(const char *c) {
 }
 
 void Events::save() {
-  // TODO: What I need to do is create a new image when I create a rectangle
-  // Currently, the original image is being passed through m_imgPath and will
-  // save the original img Extract filename from the input path
   std::filesystem::path filePath(m_imgPath);
-  std::string filename = filePath.filename().string(); // e.g., "forest.jpg"
+  std::string filename = filePath.filename().string();
 
-  // TODO: This has to work on Windows, not linux :(
   // Get the user's Downloads folder
   std::string homeDir = std::getenv("HOME");
   std::string downloadPath = homeDir + "/Downloads/";
@@ -160,21 +156,25 @@ void Events::save() {
   std::cout << "Saving original file to: " << originalSavePath << std::endl;
   std::cout << "Saving new file to: " << newSavePath << std::endl;
 
-  // Load image (assuming m_image is already loaded; otherwise, use cv::imread)
-  cv::Mat m_image = cv::imread(m_imgPath);
-  if (m_image.empty()) {
-    std::cerr << "Error: Unable to load image." << std::endl;
+  // Save the original image
+  cv::Mat originalImage = cv::imread(m_imgPath);
+  if (originalImage.empty()) {
+    std::cerr << "Error: Unable to load original image." << std::endl;
     return;
   }
 
+  // Create modified image from arr1D
+  cv::Mat modifiedImage(m_image.rows, m_image.cols, m_image.type());
+  memcpy(modifiedImage.data, arr1D, m_image.rows * m_image.cols * 3);
+
   // Save the images
-  if (cv::imwrite(originalSavePath, m_image)) {
+  if (cv::imwrite(originalSavePath, originalImage)) {
     std::cout << "Original image saved successfully." << std::endl;
   } else {
     std::cerr << "Failed to save original image." << std::endl;
   }
 
-  if (cv::imwrite(newSavePath, m_image)) {
+  if (cv::imwrite(newSavePath, modifiedImage)) {
     std::cout << "Modified image saved successfully." << std::endl;
   } else {
     std::cerr << "Failed to save modified image." << std::endl;
