@@ -10,120 +10,54 @@ using namespace cv;
 using namespace std;
 
 // Global variables
-Mat image;
-Mat image2;
-Mat image_org;
+Mat image, image_org, image_unmodified;
 Point pt = Point(-1, -1);
 bool drawing = false;
-unsigned char *arr1D; // 1D array to hold image data
+unsigned char *arr1D;
+int m_blurDegree = 3;
+std::string m_imgPath;
 
-int m_blurDegree = 5; // You can adjust this degree for stronger/weaker blur
-string m_imgPath;     // To store the image path
-
-// Mouse callback function to handle the rectangle drawing and blur effect
 void drawRectangleCallback(int event, int x, int y, int flags, void *userData) {
   if (!userData)
     return;
 
   Mat *image = static_cast<Mat *>(userData);
-  int kernelSize = 2 * m_blurDegree + 1;
-  int kernelOffset = kernelSize / 2;
 
   if (event == EVENT_LBUTTONDOWN) {
     drawing = true;
     pt = Point(x, y);
-    image->copyTo(image_org); // Keep a copy of the original image for restoring
-    std::memcpy(arr1D, image->data, image->rows * image->cols * 3);
+    image->copyTo(image_org);
   } else if (event == EVENT_MOUSEMOVE && drawing) {
-    image_org.copyTo(*image); // Restore image from the original copy
-    rectangle(*image, pt, Point(x, y), Scalar(255, 0, 0),
-              2); // Draw the rectangle
-
-    int minX = std::max(kernelOffset, std::min(pt.x, x));
-    int maxX = std::min(image->cols - kernelOffset, std::max(pt.x, x));
-    int minY = std::max(kernelOffset, std::min(pt.y, y));
-    int maxY = std::min(image->rows - kernelOffset, std::max(pt.y, y));
-
-    // Apply blur effect
-    for (int j = minY; j < maxY; j++) {
-      for (int i = minX; i < maxX; i++) {
-        int idx = (j * image->cols + i) * 3;
-        for (int c = 0; c < 3; c++) {
-          int sum = 0;
-          for (int dy = -kernelOffset; dy <= kernelOffset; dy++) {
-            for (int dx = -kernelOffset; dx <= kernelOffset; dx++) {
-              int pidx = ((j + dy) * image->cols + (i + dx)) * 3 + c;
-              sum += arr1D[pidx];
-            }
-          }
-          image->data[idx + c] = sum / (kernelSize * kernelSize);
-        }
-      }
-    }
+    image_org.copyTo(*image);
+    rectangle(*image, pt, Point(x, y), Scalar(255, 0, 0), 2);
   } else if (event == EVENT_LBUTTONUP) {
-    if (drawing && !image->empty()) {
-      int minX = std::max(kernelOffset, std::min(pt.x, x));
-      int maxX = std::min(image->cols - kernelOffset, std::max(pt.x, x));
-      int minY = std::max(kernelOffset, std::min(pt.y, y));
-      int maxY = std::min(image->rows - kernelOffset, std::max(pt.y, y));
-
-      // Apply blur effect after mouse release
-      for (int j = minY; j < maxY; j++) {
-        for (int i = minX; i < maxX; i++) {
-          int idx = (j * image->cols + i) * 3;
-          for (int c = 0; c < 3; c++) {
-            int sum = 0;
-            for (int dy = -kernelOffset; dy <= kernelOffset; dy++) {
-              for (int dx = -kernelOffset; dx <= kernelOffset; dx++) {
-                int pidx = ((j + dy) * image->cols + (i + dx)) * 3 + c;
-                sum += arr1D[pidx];
-              }
-            }
-            image->data[idx + c] = sum / (kernelSize * kernelSize);
-          }
-        }
+    if (drawing) {
+      Rect roi(pt, Point(x, y));
+      if (roi.width > 0 && roi.height > 0) {
+        // Get the original region from image_org, blur it, then copy to the
+        // main image
+        Mat region_original = image_org(roi);
+        Mat blurred_region;
+        GaussianBlur(region_original, blurred_region,
+                     Size(2 * m_blurDegree + 1, 2 * m_blurDegree + 1), 0);
+        blurred_region.copyTo((*image)(roi));
       }
-
-      rectangle(*image, pt, Point(x, y), Scalar(255, 0, 0), 2);
-      std::memcpy(arr1D, image->data, image->rows * image->cols * 3);
     }
     drawing = false;
   }
 }
 
-// Save the modified image to a new location with "2" appended to the filename
 void save() {
-  if (m_imgPath.empty()) {
-    std::cerr << "Error: Image path is empty." << std::endl;
-    return;
-  }
-
   std::filesystem::path filePath(m_imgPath);
-  std::string filename = filePath.filename().string();
-
-  // Construct the save path with "2" appended to the filename
-  std::string homeDir = std::getenv("HOME");
-  std::string downloadPath = homeDir + "/Downloads/";
   std::string newFilename =
       filePath.stem().string() + "2" + filePath.extension().string();
-  std::string newSavePath = downloadPath + newFilename;
+  std::string savePath = filePath.parent_path().string() + "/" + newFilename;
 
-  // Create a modified image from arr1D
-  Mat modifiedImage(image.rows, image.cols, image.type());
-  std::memcpy(modifiedImage.data, arr1D, image.rows * image.cols * 3);
-
-  // Save the modified image only
-  imwrite(newSavePath, modifiedImage);
+  cout << "Saving modified file to: " << savePath << endl;
+  imwrite(savePath, image);
 }
 
-// Reset image to original
-void reset() {
-  if (!image_org.empty()) {
-    image2.copyTo(image);
-  } else {
-    std::cerr << "Error: Original image not available." << std::endl;
-  }
-}
+void reset() { image_unmodified.copyTo(image); }
 
 int main(int argc, char **argv) {
   if (argc != 2) {
@@ -132,22 +66,15 @@ int main(int argc, char **argv) {
   }
 
   m_imgPath = argv[1];
-  image = imread(m_imgPath);  // Load image
-  image2 = imread(m_imgPath); // Load image
-  image.copyTo(image_org);    // Copy image for restoration later
-
-  cout << "Image size: (" << image.rows << ", " << image.cols << ")\n";
-
-  // Create a 1D array and assign values from image
-  arr1D = new unsigned char[image.rows * image.cols * 3];
-  std::memcpy(arr1D, image.data, image.rows * image.cols * 3);
+  image = imread(m_imgPath);
+  image.copyTo(image_org);
+  image.copyTo(image_unmodified);
 
   namedWindow("My Window");
   setMouseCallback("My Window", drawRectangleCallback, &image);
 
-  while (true) {
+  while (1) {
     imshow("My Window", image);
-
     char c = waitKey(100);
     switch (c) {
     case 'i':
@@ -156,7 +83,7 @@ int main(int argc, char **argv) {
         m_blurDegree++;
       else
         m_blurDegree += 5;
-      cout << "working i" << m_blurDegree << endl;
+      cout << "m_blurDegree increased to " << m_blurDegree << endl;
       break;
     case 'd':
     case 'D':
@@ -164,7 +91,9 @@ int main(int argc, char **argv) {
         m_blurDegree--;
       else
         m_blurDegree -= 5;
-      cout << "m_blurDegree" << m_blurDegree << endl;
+      // Ensure m_blurDegree doesn't go below 0
+      m_blurDegree = std::max(m_blurDegree, 0);
+      cout << "m_blurDegree decreased to " << m_blurDegree << endl;
       break;
     case 's':
     case 'S':
@@ -174,16 +103,8 @@ int main(int argc, char **argv) {
     case 'R':
       reset();
       break;
-    default:
-      break;
-    }
-    if (c == 27) {
-      break; // ESC key to exit
+    case 27:
+      return 0;
     }
   }
-
-  // Clean up
-  delete[] arr1D;
-
-  return 0;
 }
