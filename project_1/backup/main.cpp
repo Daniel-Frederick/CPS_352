@@ -10,7 +10,6 @@
 using namespace cv;
 using namespace std;
 
-// Global variables
 Mat image, image_org, image_unmodified;
 Point pt = Point(-1, -1);
 bool drawing = false;
@@ -18,38 +17,36 @@ unsigned char *arr1D;
 int m_blurDegree = 3;
 std::string m_imgPath;
 
-// Store the rectangles drawn
+// Structure to store blur rectangles
 struct BlurRect {
-  Rect rect;
-  Mat original;
+  Rect rect;    // OpenCV rectangle coordinates
+  Mat original; // Original image data for this region
 };
-std::vector<BlurRect> blurRects;
+std::vector<BlurRect> blurRects; // Collection of all blur regions
 
-// Function to apply mosaic effect to a region
 void applyMosaicEffect(Mat &region, int blur_degree) {
+  // Iterate through the region in block-sized steps
   for (int y = 0; y < region.rows - blur_degree; y += blur_degree) {
     for (int x = 0; x < region.cols - blur_degree; x += blur_degree) {
-      // Calculate average color for this block
-      Vec3f avgColor(0, 0, 0);
+      Vec3f avgColor(0, 0, 0); // Floating point vector for color averaging
       int count = 0;
 
-      // Sum all pixels in this block
+      // Calculate average color in current block
       for (int by = 0; by < blur_degree; by++) {
         for (int bx = 0; bx < blur_degree; bx++) {
           if (y + by < region.rows && x + bx < region.cols) {
             Vec3b pixel = region.at<Vec3b>(y + by, x + bx);
-            avgColor[0] += pixel[0];
-            avgColor[1] += pixel[1];
-            avgColor[2] += pixel[2];
+            avgColor[0] += pixel[0]; // Blue channel
+            avgColor[1] += pixel[1]; // Green channel
+            avgColor[2] += pixel[2]; // Red channel
             count++;
           }
         }
       }
 
-      // Calculate average
-      avgColor /= count;
+      avgColor /= count; // Compute average color
 
-      // Set all pixels in this block to the average
+      // Apply average color to all pixels in the block
       for (int by = 0; by < blur_degree; by++) {
         for (int bx = 0; bx < blur_degree; bx++) {
           if (y + by < region.rows && x + bx < region.cols) {
@@ -62,17 +59,17 @@ void applyMosaicEffect(Mat &region, int blur_degree) {
   }
 }
 
-// Function to reapply all blur effects
 void reapplyBlurs() {
+  // Restore original image
   image_unmodified.copyTo(image);
 
-  // First apply all mosaic effects
+  // Apply all stored mosaic effects
   for (const auto &blur : blurRects) {
     Mat region = image(blur.rect);
     applyMosaicEffect(region, m_blurDegree);
   }
 
-  // Then draw all rectangle outlines
+  // Redraw all rectangle outlines
   for (const auto &blur : blurRects) {
     rectangle(image, blur.rect, Scalar(255, 0, 0), 2);
   }
@@ -83,48 +80,56 @@ void drawRectangleCallback(int event, int x, int y, int flags, void *userData) {
     return;
   Mat *image = static_cast<Mat *>(userData);
 
-  if (event == EVENT_LBUTTONDOWN) {
+  switch (event) {
+  case EVENT_LBUTTONDOWN:
     drawing = true;
     pt = Point(x, y);
-    image->copyTo(image_org);
-  } else if (event == EVENT_MOUSEMOVE && drawing) {
-    image_org.copyTo(*image);
-    // Redraw all existing rectangles
-    for (const auto &blur : blurRects) {
-      rectangle(*image, blur.rect, Scalar(255, 0, 0), 2);
+    image->copyTo(image_org); // Save current state
+    break;
+
+  case EVENT_MOUSEMOVE:
+    if (drawing) {
+      image_org.copyTo(*image);
+      // Redraw existing rectangles
+      for (const auto &blur : blurRects) {
+        rectangle(*image, blur.rect, Scalar(255, 0, 0), 2);
+      }
+      // Draw current temporary rectangle
+      rectangle(*image, pt, Point(x, y), Scalar(255, 0, 0), 2);
     }
-    // Draw the current rectangle being created
-    rectangle(*image, pt, Point(x, y), Scalar(255, 0, 0), 2);
-  } else if (event == EVENT_LBUTTONUP) {
+    break;
+
+  case EVENT_LBUTTONUP:
     if (drawing) {
       Rect roi(pt, Point(x, y));
       if (roi.width > 0 && roi.height > 0) {
-        // Normalize the rectangle coordinates
+        // Normalize coordinates (handle any drawing direction)
         roi = Rect(min(pt.x, x), min(pt.y, y), abs(x - pt.x), abs(y - pt.y));
 
-        // Store the original region and rectangle
+        // Store rectangle and original pixels
         BlurRect blurRect;
         blurRect.rect = roi;
         blurRect.original = image_unmodified(roi).clone();
         blurRects.push_back(blurRect);
 
-        // Apply the mosaic effect
+        // Apply mosaic to new region
         Mat region = (*image)(roi);
         applyMosaicEffect(region, m_blurDegree);
 
-        // Draw the rectangle outline
+        // Draw outline
         rectangle(*image, roi, Scalar(255, 0, 0), 2);
       }
+      drawing = false;
     }
-    drawing = false;
+    break;
   }
 }
 
 void save() {
-  std::filesystem::path filePath(m_imgPath);
-  std::string newFilename =
+  filesystem::path filePath(m_imgPath);
+  string newFilename =
       filePath.stem().string() + "_mosaic" + filePath.extension().string();
-  std::string savePath = filePath.parent_path().string() + "/" + newFilename;
+  string savePath = filePath.parent_path().string() + "/" + newFilename;
   imwrite(savePath, image);
 }
 
@@ -147,10 +152,11 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
+  // Create backup copies of the original image
   image.copyTo(image_org);
   image.copyTo(image_unmodified);
 
-  const std::string WINDOW = "Dan's Window";
+  const string WINDOW = "Dan's Window";
   namedWindow(WINDOW);
   setMouseCallback(WINDOW, drawRectangleCallback, &image);
 
@@ -174,7 +180,7 @@ int main(int argc, char **argv) {
         m_blurDegree--;
       else if (m_blurDegree > 5)
         m_blurDegree -= 5;
-      m_blurDegree = std::max(m_blurDegree, 1);
+      m_blurDegree = max(m_blurDegree, 1);
       reapplyBlurs();
       break;
 
