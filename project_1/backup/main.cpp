@@ -25,14 +25,49 @@ struct BlurRect {
 };
 std::vector<BlurRect> blurRects;
 
+// Function to apply mosaic effect to a region
+void applyMosaicEffect(Mat &region, int blur_degree) {
+  for (int y = 0; y < region.rows - blur_degree; y += blur_degree) {
+    for (int x = 0; x < region.cols - blur_degree; x += blur_degree) {
+      // Calculate average color for this block
+      Vec3f avgColor(0, 0, 0);
+      int count = 0;
+
+      // Sum all pixels in this block
+      for (int by = 0; by < blur_degree; by++) {
+        for (int bx = 0; bx < blur_degree; bx++) {
+          if (y + by < region.rows && x + bx < region.cols) {
+            Vec3b pixel = region.at<Vec3b>(y + by, x + bx);
+            avgColor[0] += pixel[0];
+            avgColor[1] += pixel[1];
+            avgColor[2] += pixel[2];
+            count++;
+          }
+        }
+      }
+
+      // Calculate average
+      avgColor /= count;
+
+      // Set all pixels in this block to the average
+      for (int by = 0; by < blur_degree; by++) {
+        for (int bx = 0; bx < blur_degree; bx++) {
+          if (y + by < region.rows && x + bx < region.cols) {
+            region.at<Vec3b>(y + by, x + bx) =
+                Vec3b(avgColor[0], avgColor[1], avgColor[2]);
+          }
+        }
+      }
+    }
+  }
+}
+
 // Function to reapply all blur effects
 void reapplyBlurs() {
   image_unmodified.copyTo(image);
   for (const auto &blur : blurRects) {
-    Mat blurred_region;
-    GaussianBlur(blur.original, blurred_region,
-                 Size(2 * m_blurDegree + 1, 2 * m_blurDegree + 1), 0);
-    blurred_region.copyTo(image(blur.rect));
+    Mat region = image(blur.rect);
+    applyMosaicEffect(region, m_blurDegree);
   }
 }
 
@@ -61,11 +96,9 @@ void drawRectangleCallback(int event, int x, int y, int flags, void *userData) {
         blurRect.original = image_unmodified(roi).clone();
         blurRects.push_back(blurRect);
 
-        // Apply the current blur
-        Mat blurred_region;
-        GaussianBlur(blurRect.original, blurred_region,
-                     Size(2 * m_blurDegree + 1, 2 * m_blurDegree + 1), 0);
-        blurred_region.copyTo((*image)(roi));
+        // Apply the mosaic effect
+        Mat region = (*image)(roi);
+        applyMosaicEffect(region, m_blurDegree);
       }
     }
     drawing = false;
@@ -75,7 +108,7 @@ void drawRectangleCallback(int event, int x, int y, int flags, void *userData) {
 void save() {
   std::filesystem::path filePath(m_imgPath);
   std::string newFilename =
-      filePath.stem().string() + "2" + filePath.extension().string();
+      filePath.stem().string() + "_mosaic" + filePath.extension().string();
   std::string savePath = filePath.parent_path().string() + "/" + newFilename;
   cout << "Saving modified file to: " << savePath << endl;
   imwrite(savePath, image);
@@ -88,20 +121,34 @@ void reset() {
 
 int main(int argc, char **argv) {
   if (argc != 2) {
-    cout << "Include an image path!" << endl;
+    cout << "Usage: " << argv[0] << " <image_path>" << endl;
     exit(EXIT_FAILURE);
   }
 
   m_imgPath = argv[1];
   image = imread(m_imgPath);
+
+  if (image.empty()) {
+    cout << "Error: Could not read image file: " << m_imgPath << endl;
+    exit(EXIT_FAILURE);
+  }
+
   image.copyTo(image_org);
   image.copyTo(image_unmodified);
 
-  namedWindow("My Window");
-  setMouseCallback("My Window", drawRectangleCallback, &image);
+  namedWindow("Mosaic Effect Tool");
+  setMouseCallback("Mosaic Effect Tool", drawRectangleCallback, &image);
 
-  while (1) {
-    imshow("My Window", image);
+  cout << "Controls:" << endl;
+  cout << "  - Click and drag to select region" << endl;
+  cout << "  - Press 'i/I' to increase blur" << endl;
+  cout << "  - Press 'd/D' to decrease blur" << endl;
+  cout << "  - Press 'r/R' to reset" << endl;
+  cout << "  - Press 's/S' to save" << endl;
+  cout << "  - Press 'ESC' to exit" << endl;
+
+  while (true) {
+    imshow("Mosaic Effect Tool", image);
     char c = waitKey(100);
 
     switch (c) {
@@ -111,7 +158,6 @@ int main(int argc, char **argv) {
         m_blurDegree++;
       else
         m_blurDegree += 5;
-      cout << "m_blurDegree increased to " << m_blurDegree << endl;
       reapplyBlurs();
       break;
 
@@ -119,10 +165,9 @@ int main(int argc, char **argv) {
     case 'D':
       if (m_blurDegree <= 5 && m_blurDegree > 1)
         m_blurDegree--;
-      else
+      else if (m_blurDegree > 5)
         m_blurDegree -= 5;
-      m_blurDegree = std::max(m_blurDegree, 0);
-      cout << "m_blurDegree decreased to " << m_blurDegree << endl;
+      m_blurDegree = std::max(m_blurDegree, 1);
       reapplyBlurs();
       break;
 
