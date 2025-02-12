@@ -65,9 +65,16 @@ void applyMosaicEffect(Mat &region, int blur_degree) {
 // Function to reapply all blur effects
 void reapplyBlurs() {
   image_unmodified.copyTo(image);
+
+  // First apply all mosaic effects
   for (const auto &blur : blurRects) {
     Mat region = image(blur.rect);
     applyMosaicEffect(region, m_blurDegree);
+  }
+
+  // Then draw all rectangle outlines
+  for (const auto &blur : blurRects) {
+    rectangle(image, blur.rect, Scalar(255, 0, 0), 2);
   }
 }
 
@@ -82,6 +89,11 @@ void drawRectangleCallback(int event, int x, int y, int flags, void *userData) {
     image->copyTo(image_org);
   } else if (event == EVENT_MOUSEMOVE && drawing) {
     image_org.copyTo(*image);
+    // Redraw all existing rectangles
+    for (const auto &blur : blurRects) {
+      rectangle(*image, blur.rect, Scalar(255, 0, 0), 2);
+    }
+    // Draw the current rectangle being created
     rectangle(*image, pt, Point(x, y), Scalar(255, 0, 0), 2);
   } else if (event == EVENT_LBUTTONUP) {
     if (drawing) {
@@ -99,6 +111,9 @@ void drawRectangleCallback(int event, int x, int y, int flags, void *userData) {
         // Apply the mosaic effect
         Mat region = (*image)(roi);
         applyMosaicEffect(region, m_blurDegree);
+
+        // Draw the rectangle outline
+        rectangle(*image, roi, Scalar(255, 0, 0), 2);
       }
     }
     drawing = false;
@@ -110,7 +125,6 @@ void save() {
   std::string newFilename =
       filePath.stem().string() + "_mosaic" + filePath.extension().string();
   std::string savePath = filePath.parent_path().string() + "/" + newFilename;
-  cout << "Saving modified file to: " << savePath << endl;
   imwrite(savePath, image);
 }
 
@@ -136,19 +150,12 @@ int main(int argc, char **argv) {
   image.copyTo(image_org);
   image.copyTo(image_unmodified);
 
-  namedWindow("Mosaic Effect Tool");
-  setMouseCallback("Mosaic Effect Tool", drawRectangleCallback, &image);
-
-  cout << "Controls:" << endl;
-  cout << "  - Click and drag to select region" << endl;
-  cout << "  - Press 'i/I' to increase blur" << endl;
-  cout << "  - Press 'd/D' to decrease blur" << endl;
-  cout << "  - Press 'r/R' to reset" << endl;
-  cout << "  - Press 's/S' to save" << endl;
-  cout << "  - Press 'ESC' to exit" << endl;
+  const std::string WINDOW = "Dan's Window";
+  namedWindow(WINDOW);
+  setMouseCallback(WINDOW, drawRectangleCallback, &image);
 
   while (true) {
-    imshow("Mosaic Effect Tool", image);
+    imshow(WINDOW, image);
     char c = waitKey(100);
 
     switch (c) {
